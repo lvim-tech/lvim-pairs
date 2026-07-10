@@ -1,0 +1,155 @@
+*lvim-pairs.txt*                      Paired delimiters: autopairs, surround, autotag
+
+==============================================================================
+CONTENTS                                                     *lvim-pairs-contents*
+
+  1. Introduction .......................... |lvim-pairs-introduction|
+  2. Requirements .......................... |lvim-pairs-requirements|
+  3. Setup ................................. |lvim-pairs-setup|
+  4. Autopairs ............................. |lvim-pairs-autopairs|
+  5. The <CR> handshake .................... |lvim-pairs-cr|
+  6. Surround .............................. |lvim-pairs-surround|
+  7. Autotag ............................... |lvim-pairs-autotag|
+  8. Configuration ......................... |lvim-pairs-config|
+  9. Health ................................ |lvim-pairs-health|
+
+==============================================================================
+1. INTRODUCTION                                          *lvim-pairs-introduction*
+
+lvim-pairs is everything "paired delimiters" in one plugin, sharing ONE
+pair-definition table across three independently toggleable modules:
+
+  - autopairs  insert-mode auto-pairing (open/close/quote, <BS>, <Space>,
+               <CR>, fastwrap)
+  - surround   normal/visual operators (ys / yss / S / ds / cs)
+  - autotag    HTML/JSX tag auto-close on `>` and live tag-name rename
+
+Pairing consults the treesitter node at the cursor (a quote does not pair
+inside a string/comment); without a parser the check degrades to off, never to
+an error. The `t` and `f` surrounds prompt for a name through lvim-ui.
+
+==============================================================================
+2. REQUIREMENTS                                          *lvim-pairs-requirements*
+
+  - Neovim >= 0.10
+  - lvim-utils                (palette flash + shared merge)
+  - lvim-ts    (optional)     parsers for the quote check / autotag / t,f
+  - lvim-ui    (optional)     the tag / function name prompt
+
+==============================================================================
+3. SETUP                                                        *lvim-pairs-setup*
+
+>lua
+    require("lvim-pairs").setup({})
+<
+setup() merges the given options into the live config, rebuilds the shared
+pair table, self-themes the flash + fastwrap hint from the lvim-utils palette,
+and starts each enabled module. See |lvim-pairs-config| for every option.
+
+==============================================================================
+4. AUTOPAIRS                                                *lvim-pairs-autopairs*
+
+Global insert-mode behaviour, one expr map per delimiter:
+
+  (            insert `()`, cursor inside (a lone `(` before a word)
+  )   at (|)   step over the existing `)`
+  "   at "|"   step over the closing quote
+  "            literal after a word / `\` / inside a string (no pair)
+  <BS> at (|)  delete both sides — and both spaces of `( | )`
+  <Space>      pad `(|)` to `( | )`
+  <CR> at {|}  split to `{` / indented blank line / `}`
+  <M-e>        fastwrap: label the word ends ahead, pick one, the close hops
+
+fastwrap                                                     *lvim-pairs-fastwrap*
+After the auto-inserted pair, `<M-e>` (config.autopairs.fastwrap) labels the
+end of each word ahead on the line with LvimPairsHint; the chosen label moves
+the close there, wrapping that span. Any other key cancels.
+
+==============================================================================
+5. THE <CR> HANDSHAKE                                              *lvim-pairs-cr*
+
+`<CR>` between a pair and `<CR>` confirming a completion are the same key. When
+lvim-cmp is present, lvim-pairs does NOT map <CR>; cmp owns it and calls
+`require("lvim-pairs").cr()` as its fallback: >lua
+
+    if cmp.visible() and cmp.get_selected_entry() then
+        cmp.confirm()
+    else
+        return require("lvim-pairs").cr()
+    end
+<
+`cr()` returns an expr string — the pair-aware newline, or a plain <CR>.
+Without lvim-cmp, lvim-pairs maps <CR> itself (config.autopairs.map_cr).
+
+==============================================================================
+6. SURROUND                                                  *lvim-pairs-surround*
+
+  ys{motion}{char}    surround the motion
+  yss{char}           surround the current line
+  S{char}   (visual)  surround the selection
+  ds{char}            delete the surrounding char
+  cs{old}{new}        change surround old -> new
+
+{char} is a delimiter or alias: ( ) b -> (), { } B -> {}, [ ], < > a,
+" ' ` , plus:
+
+  t   an HTML tag  — prompts for the name: <name>...</name>
+  f   a func call  — prompts for the name: name(...)
+
+dst / cst rename the enclosing tag (both sides) via treesitter; dsf / csf act
+on the enclosing call. All operators are dot-repeatable (native operatorfunc);
+added and changed delimiters flash green (LvimPairsFlash) briefly.
+
+==============================================================================
+7. AUTOTAG                                                    *lvim-pairs-autotag*
+
+In the configured filetypes (config.autotag.filetypes):
+
+  - typing `>` completing `<div>` inserts `</div>` after the cursor
+  - typing `/` right after `<` completes the nearest open tag's close
+  - editing either tag name renames its partner live (debounced)
+
+Void elements (br, img, input, ...) and self-closing tags are never
+auto-closed. Close-on-`>` uses a line regex (the just-typed tag is still an
+incomplete node); `</`-completion and rename use the settled treesitter tree.
+
+==============================================================================
+8. CONFIGURATION                                                *lvim-pairs-config*
+
+Defaults (mirrors lua/lvim-pairs/config.lua): >lua
+
+    require("lvim-pairs").setup({
+        autopairs = {
+            enabled = true,
+            fastwrap = "<M-e>",
+            map_cr = true,
+            map_bs = true,
+            disable_filetype = {
+                "TelescopePrompt", "spectre_panel", "lvim-picker-prompt",
+            },
+        },
+        surround = { enabled = true },
+        autotag = {
+            enabled = true,
+            filetypes = {
+                "html", "xml", "javascriptreact", "typescriptreact",
+                "javascript", "typescript", "vue", "svelte", "astro",
+                "markdown", "php", "xhtml", "rescript",
+            },
+        },
+        ts_checks = true,
+        pairs = {},
+    })
+<
+A user pair is `{ open, close, quote?, space_pad?, ts_not_in?, surround?,
+aliases? }`. One with the same `open` as a built-in replaces it; a new `open`
+is appended and becomes available to every engine at once.
+
+==============================================================================
+9. HEALTH                                                       *lvim-pairs-health*
+
+`:checkhealth lvim-pairs` reports the lvim-utils / lvim-ui / lvim-ts state,
+each module's status, and whether the surround keys (ys / ds / cs) still
+resolve to lvim-pairs.
+
+vim:tw=78:ts=8:ft=help:norl:
