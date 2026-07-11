@@ -15,6 +15,7 @@
 
 ---@class LvimPairsSurround
 ---@field enabled boolean  Normal/visual surround operators (ys / ds / cs / S)
+---@field flash_ms integer  how long (ms) the LvimPairsFlash surround-highlight stays on
 
 ---@class LvimPairsAutotag
 ---@field enabled   boolean   Auto-close and auto-rename HTML/JSX/XML tags (needs a treesitter parser)
@@ -42,6 +43,7 @@ return {
     -- `ds{char}` delete, `cs{old}{new}` change. All dot-repeatable via the native operatorfunc seam.
     surround = {
         enabled = true,
+        flash_ms = 120,
     },
     -- HTML/JSX tag auto-close on `>` and auto-RENAME (editing one side renames the other). Needs a
     -- treesitter parser for the buffer (provisioned by lvim-ts in the lvim-tech set).

@@ -19,7 +19,6 @@ local ts = require("lvim-pairs.ts")
 local M = {}
 
 local ns = api.nvim_create_namespace("lvim-pairs-surround-flash")
-local FLASH_MS = 120
 ---@type uv.uv_timer_t|nil
 local flash_timer = nil
 
@@ -58,7 +57,7 @@ local function flash(buf, row, scol, ecol)
     end
     flash_timer:stop()
     flash_timer:start(
-        FLASH_MS,
+        config.surround.flash_ms,
         0,
         vim.schedule_wrap(function()
             if api.nvim_buf_is_valid(buf) then
