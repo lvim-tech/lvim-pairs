@@ -61,21 +61,20 @@ local function enclosing_tags(buf)
     return ot, ct
 end
 
---- Close-on-`>`: insert `>` at the cursor, then if that completed an OPENING tag (`<name …>`, not a
+--- After a typed `>` has settled into the buffer, if it completed an OPENING tag (`<name …>`, not a
 --- close, self-close or void element) with no matching close, append `</name>` after the cursor and
---- leave the cursor between them.
+--- leave the cursor between them. Runs scheduled from the `>` expr map, so the literal `>` reaches the
+--- buffer through typeahead (visible to the redo buffer → dot-repeatable) before this fires.
+---@param buf integer
 ---@return nil
-local function on_gt()
-    local buf = api.nvim_get_current_buf()
-    local cur = api.nvim_win_get_cursor(0)
-    local row, col = cur[1] - 1, cur[2]
-    api.nvim_buf_set_text(buf, row, col, row, col, { ">" })
-    api.nvim_win_set_cursor(0, { row + 1, col + 1 })
-    if config.autotag.enabled == false then
+local function complete_gt(buf)
+    if not api.nvim_buf_is_valid(buf) then
         return
     end
+    local cur = api.nvim_win_get_cursor(0)
+    local row, col = cur[1] - 1, cur[2] -- col is AFTER the just-typed '>'
     local line = api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
-    local before = line:sub(1, col + 1) -- includes the just-typed '>'
+    local before = line:sub(1, col) -- includes the just-typed '>'
     local seg = before:match("<[^<>]*>$")
     if not seg or seg:sub(1, 2) == "</" or seg:sub(-2) == "/>" then
         return
@@ -85,31 +84,42 @@ local function on_gt()
         return
     end
     -- don't double-close when a matching </name> already follows on the line
-    if line:sub(col + 2):match("^%s*</" .. vim.pesc(name) .. ">") then
+    if line:sub(col + 1):match("^%s*</" .. vim.pesc(name) .. ">") then
         return
     end
-    api.nvim_buf_set_text(buf, row, col + 1, row, col + 1, { "</" .. name .. ">" })
-    api.nvim_win_set_cursor(0, { row + 1, col + 1 })
+    api.nvim_buf_set_text(buf, row, col, row, col, { "</" .. name .. ">" })
+    api.nvim_win_set_cursor(0, { row + 1, col })
 end
 
---- `</`-completion: insert `/`, then if it followed a `<` inside an unclosed element, complete the
---- nearest enclosing open tag's name + `>`.
+--- Close-on-`>` expr map: return a literal `>` (so it types through typeahead and stays
+--- dot-repeatable) and schedule the auto-close for after it lands.
+---@return string
+local function on_gt()
+    if config.autotag.enabled ~= false then
+        local buf = api.nvim_get_current_buf()
+        vim.schedule(function()
+            complete_gt(buf)
+        end)
+    end
+    return ">"
+end
+
+--- After a typed `/` has settled, if it followed a `<` inside an unclosed element, complete the
+--- nearest enclosing open tag's name + `>`. Scheduled from the `/` expr map (see complete_gt).
+---@param buf integer
 ---@return nil
-local function on_slash()
-    local buf = api.nvim_get_current_buf()
-    local cur = api.nvim_win_get_cursor(0)
-    local row, col = cur[1] - 1, cur[2]
-    api.nvim_buf_set_text(buf, row, col, row, col, { "/" })
-    api.nvim_win_set_cursor(0, { row + 1, col + 1 })
-    if config.autotag.enabled == false then
+local function complete_slash(buf)
+    if not api.nvim_buf_is_valid(buf) then
         return
     end
+    local cur = api.nvim_win_get_cursor(0)
+    local row, col = cur[1] - 1, cur[2] -- col is AFTER the just-typed '/'
     local line = api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
-    if line:sub(col, col) ~= "<" then
+    if line:sub(col - 1, col - 1) ~= "<" then
         return -- only complete right after a '<'
     end
     ts.parse(buf)
-    local node = ts.node_at(buf, row, col)
+    local node = ts.node_at(buf, row, col - 1)
     local el = ts.ancestor(node, ts.ELEMENT_TYPES)
     local ot = el
         and (function()
@@ -123,8 +133,21 @@ local function on_slash()
     if name == "" then
         return
     end
-    api.nvim_buf_set_text(buf, row, col + 1, row, col + 1, { name .. ">" })
-    api.nvim_win_set_cursor(0, { row + 1, col + 1 + #name + 1 })
+    api.nvim_buf_set_text(buf, row, col, row, col, { name .. ">" })
+    api.nvim_win_set_cursor(0, { row + 1, col + #name + 1 })
+end
+
+--- `</`-completion expr map: return a literal `/` (dot-repeatable via typeahead) and schedule the
+--- open-tag-name completion for after it lands.
+---@return string
+local function on_slash()
+    if config.autotag.enabled ~= false then
+        local buf = api.nvim_get_current_buf()
+        vim.schedule(function()
+            complete_slash(buf)
+        end)
+    end
+    return "/"
 end
 
 --- Whether the cursor sits within node `n` (inclusive of its end).
@@ -199,7 +222,8 @@ local function schedule_rename(buf)
     )
 end
 
---- Attach the tag engine to a buffer: buffer-local `>` and `/` insert maps plus a debounced
+--- Attach the tag engine to a buffer: buffer-local `>` and `/` insert EXPR maps (they type the
+--- literal char through typeahead — dot-repeatable — and schedule the close/complete) plus a debounced
 --- rename on TextChanged(I). Idempotent per buffer.
 ---@param buf integer
 ---@return nil
@@ -208,7 +232,7 @@ local function attach(buf)
         return
     end
     state[buf] = { patching = false }
-    local opts = { buffer = buf, silent = true, desc = "lvim-pairs: autotag" }
+    local opts = { buffer = buf, expr = true, silent = true, desc = "lvim-pairs: autotag" }
     vim.keymap.set("i", ">", on_gt, opts)
     vim.keymap.set("i", "/", on_slash, opts)
     local group = api.nvim_create_augroup("lvim-pairs-tags-" .. buf, { clear = true })

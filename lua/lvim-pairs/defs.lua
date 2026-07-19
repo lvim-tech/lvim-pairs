@@ -12,6 +12,8 @@
 ---@field quote?      boolean   Same-char open/close (auto-pairing needs the skip/run heuristics)
 ---@field space_pad?  boolean   A leading <Space> inside the pair inserts a matching trailing one
 ---@field ts_not_in?  string[]  Treesitter node types the pair must NOT auto-open inside (quotes: strings)
+---@field ft_allow?   string[]  Auto-pair ONLY in these filetypes (nil = every filetype); surround ignores it
+---@field ft_deny?    string[]  Never auto-pair in these filetypes (nil = none); surround ignores it
 ---@field surround?   string    The surround KEY (what you type after ys/ds/cs); nil = not a surround target
 ---@field aliases?    string[]  Extra surround keys that resolve to this pair
 ---@field prompt?     "tag"|"func"  A surround-only pair whose delimiters are PROMPTED for (tag name / func name)
@@ -27,7 +29,26 @@ M.builtin = {
     { open = "(", close = ")", space_pad = true, surround = "(", aliases = { "b", ")" } },
     { open = "[", close = "]", space_pad = true, surround = "[", aliases = { "]" } },
     { open = "{", close = "}", space_pad = true, surround = "{", aliases = { "B", "}" } },
-    { open = "<", close = ">", space_pad = true, surround = "<", aliases = { ">", "a" } },
+    -- `<` auto-pairs ONLY in generic-type languages (`Vec<…>`, `List<…>`), where angle brackets are a
+    -- delimiter. Everywhere else `<` is a comparison operator, so pairing it would inject a phantom `>`
+    -- after `x < `. Deliberately NOT the tag filetypes (html/jsx/…): there the autotag engine owns
+    -- angle brackets — typing `>` closes the tag — so an autopaired `<>` would collide with it and
+    -- leave a stray `>`. `<` stays a SURROUND target (`ys…<`, `ds<`) in every filetype regardless.
+    {
+        open = "<",
+        close = ">",
+        space_pad = true,
+        surround = "<",
+        aliases = { ">", "a" },
+        ft_allow = {
+            "rust",
+            "cpp",
+            "java",
+            "cs",
+            "scala",
+            "kotlin",
+        },
+    },
     { open = '"', close = '"', quote = true, ts_not_in = { "string", "comment" }, surround = '"' },
     { open = "'", close = "'", quote = true, ts_not_in = { "string", "comment", "char" }, surround = "'" },
     { open = "`", close = "`", quote = true, ts_not_in = { "string", "comment" }, surround = "`" },

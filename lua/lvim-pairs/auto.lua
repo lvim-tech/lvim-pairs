@@ -5,7 +5,8 @@
 -- back. Open inserts the pair with the cursor inside; a close skips over an existing one; a quote
 -- decides open / skip / literal by context; <BS> deletes an empty pair (and its space padding); a
 -- padded pair grows a matching space on <Space>. Global maps — auto-pairing is not per buffer; a
--- per-def `ft_deny`/`ts_not_in` gate handles the exceptions.
+-- per-def `ft_allow`/`ft_deny`/`ts_not_in` gate handles the exceptions (e.g. `<>` pairs only in
+-- tag / generic-type filetypes, never as a comparison operator).
 --
 ---@module "lvim-pairs.auto"
 
@@ -52,13 +53,33 @@ local function denied()
     return vim.tbl_contains(config.autopairs.disable_filetype or {}, vim.bo.filetype)
 end
 
+--- Whether pairing this SPECIFIC def is suppressed here: the global disable_filetype list, the def's
+--- own `ft_deny` (never pair in these filetypes), or its `ft_allow` (pair ONLY in these). `<`/`>`
+--- carry an `ft_allow` so they pair as a delimiter in tag / generic-type filetypes but stay a lone
+--- comparison operator everywhere else. Surround never consults this — it is insert-mode pairing only.
+---@param def LvimPairsDef
+---@return boolean
+local function def_denied(def)
+    if denied() then
+        return true
+    end
+    local ft = vim.bo.filetype
+    if def.ft_deny and vim.tbl_contains(def.ft_deny, ft) then
+        return true
+    end
+    if def.ft_allow and not vim.tbl_contains(def.ft_allow, ft) then
+        return true
+    end
+    return false
+end
+
 --- Open-bracket decision: insert the PAIR (cursor inside) unless the next char is word-like — then a
 --- lone open, so `(word` does not become `(word)` noise around existing text.
 ---@param def LvimPairsDef
 ---@return fun(): string
 local function open_expr(def)
     return function()
-        if denied() then
+        if def_denied(def) then
             return def.open
         end
         local c = ctx()
@@ -75,7 +96,7 @@ end
 ---@return fun(): string
 local function close_expr(def)
     return function()
-        if denied() then
+        if def_denied(def) then
             return def.close
         end
         local c = ctx()
@@ -92,7 +113,7 @@ end
 ---@return fun(): string
 local function quote_expr(def)
     return function()
-        if denied() then
+        if def_denied(def) then
             return def.open
         end
         local c = ctx()
@@ -122,14 +143,14 @@ local function bs_expr()
     end
     local c = ctx()
     local def = defs.for_open(c.before)
-    if def and c.after == def.close then
+    if def and not def_denied(def) and c.after == def.close then
         return "<BS><Del>"
     end
     if c.before == " " and c.after == " " then
         local b2 = c.col >= 2 and c.line:sub(c.col - 1, c.col - 1) or ""
         local a2 = c.line:sub(c.col + 2, c.col + 2)
         local d = defs.for_open(b2)
-        if d and d.space_pad and a2 == d.close then
+        if d and not def_denied(d) and d.space_pad and a2 == d.close then
             return "<BS><Del>"
         end
     end
@@ -145,7 +166,7 @@ local function space_expr()
     end
     local c = ctx()
     local def = defs.for_open(c.before)
-    if def and def.space_pad and c.after == def.close then
+    if def and not def_denied(def) and def.space_pad and c.after == def.close then
         return "  <Left>"
     end
     return " "

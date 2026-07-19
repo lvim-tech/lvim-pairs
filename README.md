@@ -63,6 +63,13 @@ Global insert-mode behaviour, one expr map per delimiter (nothing intercepts eve
 | `<CR>` at `{\|}` | splits to `{` ⏎ indented ⏎ `}` |
 | `<M-e>` at `(\|)word next` | fastwrap: pick a labeled end, the `)` hops there |
 
+`<` / `>` auto-pair **only** in generic-type languages (`rust`, `cpp`, `java`, `cs`, `scala`, `kotlin`),
+where angle brackets are a delimiter. Everywhere else `<` is a comparison operator, so it stays a lone
+`<` (no phantom `>`). It is deliberately **not** paired in the tag filetypes — there **autotag** owns
+angle brackets (typing `>` closes the tag), so an autopaired `<>` would collide. A pair carries this
+gate as `ft_allow` (pair only in these filetypes) / `ft_deny` (never in these); `<` remains a
+**surround** target (`ys…<`, `ds<`) in every filetype regardless.
+
 ### The `<CR>` handshake with lvim-cmp
 
 `<CR>` between a pair and `<CR>` confirming a completion are the same key. When **lvim-cmp** is
@@ -126,6 +133,7 @@ require("lvim-pairs").setup({
     -- normal/visual surround operators (ys / yss / S / ds / cs)
     surround = {
         enabled = true,
+        flash_ms = 120, -- how long the added/changed delimiters flash
     },
     -- HTML/JSX tag auto-close + auto-rename
     autotag = {
@@ -148,8 +156,8 @@ require("lvim-pairs").setup({
     },
     -- consult treesitter (node at cursor) before pairing a quote — off = always pair
     ts_checks = true,
-    -- extra user pairs, each { open, close, quote?, space_pad?, ts_not_in?, surround?, aliases? },
-    -- merged over the built-ins by `open`
+    -- extra user pairs, each { open, close, quote?, space_pad?, ts_not_in?, ft_allow?, ft_deny?,
+    -- surround?, aliases? }, merged over the built-ins by `open`
     pairs = {},
 })
 ```

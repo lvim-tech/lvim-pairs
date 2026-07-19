@@ -65,6 +65,13 @@ After the auto-inserted pair, `<M-e>` (config.autopairs.fastwrap) labels the
 end of each word ahead on the line with LvimPairsHint; the chosen label moves
 the close there, wrapping that span. Any other key cancels.
 
+`<` / `>` auto-pair ONLY in generic-type languages (rust, cpp, java, cs, scala,
+kotlin), where angle brackets are a delimiter. Elsewhere `<` is a comparison
+operator and stays a lone `<`. It is NOT paired in the tag filetypes — there
+autotag owns angle brackets (typing `>` closes the tag), so an autopaired `<>`
+would collide. A pair carries this gate as `ft_allow` (pair only in these
+filetypes) / `ft_deny` (never in these); `<` is a surround target everywhere.
+
 ==============================================================================
 5. THE <CR> HANDSHAKE                                              *lvim-pairs-cr*
 
@@ -128,7 +135,7 @@ Defaults (mirrors lua/lvim-pairs/config.lua): >lua
                 "TelescopePrompt", "spectre_panel", "lvim-picker-prompt",
             },
         },
-        surround = { enabled = true },
+        surround = { enabled = true, flash_ms = 120 },
         autotag = {
             enabled = true,
             filetypes = {
@@ -141,9 +148,10 @@ Defaults (mirrors lua/lvim-pairs/config.lua): >lua
         pairs = {},
     })
 <
-A user pair is `{ open, close, quote?, space_pad?, ts_not_in?, surround?,
-aliases? }`. One with the same `open` as a built-in replaces it; a new `open`
-is appended and becomes available to every engine at once.
+A user pair is `{ open, close, quote?, space_pad?, ts_not_in?, ft_allow?,
+ft_deny?, surround?, aliases? }`. One with the same `open` as a built-in
+replaces it; a new `open` is appended and becomes available to every engine at
+once.
 
 ==============================================================================
 9. HEALTH                                                       *lvim-pairs-health*

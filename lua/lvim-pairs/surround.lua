@@ -35,7 +35,7 @@ local CALL_TYPES = {
 
 --- The dot-repeat stash. `read` is true only when a fresh trigger armed the op; on `.` the opfunc
 --- re-runs with `read` false and reuses `def`/`new_def`/`cached`, so no input is re-read.
----@type { action: string?, read: boolean, def: LvimPairsDef?, new_def: LvimPairsDef?, cached: string?, cached2: string? }
+---@type { action: string?, read: boolean, def: LvimPairsDef?, new_def: LvimPairsDef?, cached: string? }
 local S = { action = nil, read = false }
 
 -- ── flash ────────────────────────────────────────────────────────────────────
@@ -345,10 +345,18 @@ function M.opfunc(motion)
                 if name and args then
                     local _, _, aer, aec = args:range()
                     local nsr, nsc = name:range()
-                    -- keep only the argument text, minus its own outer parens
+                    -- keep only the argument text, minus its own outer parens; split on newlines so a
+                    -- multi-line argument list survives nvim_buf_set_text (replacement items are per-line)
                     local inner = ts.text(buf, args):gsub("^%s*%(", ""):gsub("%)%s*$", "")
                     local csr = select(1, call:range())
-                    api.nvim_buf_set_text(buf, csr, select(2, call:range()), aer, aec, { inner })
+                    api.nvim_buf_set_text(
+                        buf,
+                        csr,
+                        select(2, call:range()),
+                        aer,
+                        aec,
+                        vim.split(inner, "\n", { plain = true })
+                    )
                     api.nvim_win_set_cursor(0, { nsr + 1, nsc })
                 end
             end
@@ -411,8 +419,9 @@ local function begin(action, motionkeys)
     return motionkeys
 end
 
---- Surround a visual selection with the chosen delimiters (visual `S`). Read directly — visual
---- operations are not dot-repeated through operatorfunc.
+--- Surround a visual selection with the chosen delimiters (visual `S`). Invoked AFTER the mapping's
+--- <Esc> has left visual mode, so `'<`/`'>` hold the just-ended selection; read directly (visual
+--- operations are not dot-repeated through operatorfunc).
 ---@return nil
 function M.visual()
     S.action = "add"
@@ -443,7 +452,10 @@ function M.setup()
     vim.keymap.set("n", "<Plug>(lvim-pairs-add-line)", function()
         return begin("add_line", "g@l")
     end, { expr = true, silent = true, desc = "Surround the line" })
-    vim.keymap.set("x", "<Plug>(lvim-pairs-add)", "<Cmd>lua require('lvim-pairs.surround').visual()<CR>", nx)
+    -- <Esc> LEAVES visual mode first: `'<`/`'>` only commit to the just-ended selection on exit, so a
+    -- bare <Cmd> (which stays in visual mode) would make visual_range() read the PREVIOUS session's
+    -- stale marks — wrapping the wrong span (or erroring with no prior marks). Esc-then-Cmd is the seam.
+    vim.keymap.set("x", "<Plug>(lvim-pairs-add)", "<Esc><Cmd>lua require('lvim-pairs.surround').visual()<CR>", nx)
     -- delete / change
     vim.keymap.set("n", "<Plug>(lvim-pairs-delete)", function()
         return begin("delete", "g@l")
