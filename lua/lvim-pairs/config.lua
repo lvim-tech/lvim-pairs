@@ -37,7 +37,9 @@ return {
         fastwrap = "<M-e>",
         map_cr = true,
         map_bs = true,
-        disable_filetype = { "TelescopePrompt", "spectre_panel", "lvim-picker-prompt" },
+        -- Prompt / query buffers where a typed opener must stay a lone character. Only lvim-tech
+        -- filetypes: this plugin ships no knowledge of other ecosystems' prompts.
+        disable_filetype = { "lvim-picker-prompt" },
     },
     -- Normal/visual surround operators: `ys{motion}{char}` add, `yss` line, visual `S{char}`,
     -- `ds{char}` delete, `cs{old}{new}` change. All dot-repeatable via the native operatorfunc seam.

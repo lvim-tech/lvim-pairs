@@ -132,7 +132,7 @@ Defaults (mirrors lua/lvim-pairs/config.lua): >lua
             map_cr = true,
             map_bs = true,
             disable_filetype = {
-                "TelescopePrompt", "spectre_panel", "lvim-picker-prompt",
+                "lvim-picker-prompt",
             },
         },
         surround = { enabled = true, flash_ms = 120 },

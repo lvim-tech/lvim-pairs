@@ -128,7 +128,7 @@ require("lvim-pairs").setup({
         map_cr = true, -- ignored when lvim-cmp is present (it owns <CR>)
         map_bs = true,
         -- filetypes where auto-pairing yields the plain key (prompt / query buffers)
-        disable_filetype = { "TelescopePrompt", "spectre_panel", "lvim-picker-prompt" },
+        disable_filetype = { "lvim-picker-prompt" },
     },
     -- normal/visual surround operators (ys / yss / S / ds / cs)
     surround = {
