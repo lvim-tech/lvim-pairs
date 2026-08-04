@@ -6,7 +6,6 @@
 --
 ---@module "lvim-pairs.ts"
 
-local api = vim.api
 local ts = vim.treesitter
 
 local config = require("lvim-pairs.config")
