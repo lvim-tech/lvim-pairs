@@ -31,7 +31,7 @@ an error. The `t` and `f` surrounds prompt for a name through lvim-ui.
 ==============================================================================
 2. REQUIREMENTS                                          *lvim-pairs-requirements*
 
-  - Neovim >= 0.10
+  - Neovim >= 0.12
   - lvim-utils                (palette flash + shared merge)
   - lvim-ts    (optional)     parsers for the quote check / autotag / t,f
   - lvim-ui    (optional)     the tag / function name prompt

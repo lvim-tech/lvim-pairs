@@ -21,7 +21,7 @@ error. The `t`/`f` surrounds prompt for a name through the canonical **lvim-ui**
 
 ## Requirements
 
-Requires **Neovim >= 0.10** and [lvim-utils](https://github.com/lvim-tech/lvim-utils) (the palette +
+Requires **Neovim >= 0.12** and [lvim-utils](https://github.com/lvim-tech/lvim-utils) (the palette +
 the shared merge). [lvim-ts](https://github.com/lvim-tech/lvim-ts) provisions the treesitter parsers
 the quote-context check, autotag and the `t`/`f` surrounds rely on;
 [lvim-ui](https://github.com/lvim-tech/lvim-ui) provides the tag/function name prompt.
