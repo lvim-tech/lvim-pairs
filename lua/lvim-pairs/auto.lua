@@ -5,8 +5,9 @@
 -- back. Open inserts the pair with the cursor inside; a close skips over an existing one; a quote
 -- decides open / skip / literal by context; <BS> deletes an empty pair (and its space padding); a
 -- padded pair grows a matching space on <Space>. Global maps — auto-pairing is not per buffer; a
--- per-def `ft_allow`/`ft_deny`/`ts_not_in` gate handles the exceptions (e.g. `<>` pairs only in
--- tag / generic-type filetypes, never as a comparison operator).
+-- per-def `ft_allow`/`ft_deny`/`ts_not_in` gate handles the exceptions (e.g. `<>` pairs only in the
+-- GENERIC-TYPE filetypes — rust, cpp, java, cs, scala, kotlin — never as a comparison operator, and
+-- never in the tag filetypes either, where the autotag engine owns angle brackets; see defs.lua).
 --
 ---@module "lvim-pairs.auto"
 
